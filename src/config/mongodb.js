@@ -1,23 +1,15 @@
 /* eslint-disable no-console */
-/**
- * Updated by trungquandev.com's author on August 17 2023
- * YouTube: https://youtube.com/@trungquandev
- * "A bit of fragrance clings to the hand that gives flowers!"
- */
 
 // gonpro53
 // RHoe5k6UlYdtTxeK
 
 import { MongoClient, ServerApiVersion } from 'mongodb'
-
-const MONGODB_URI = 'mongodb+srv://gonpro53:RHoe5k6UlYdtTxeK@cluster0.beldt.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0'
-
-const DATABASE_NAME = 'trello-web'
+import { env } from '~/config/environment'
 
 // Khởi tạo một đối tượng trelloDatabaseInstance ban đầu là null vì chưa kết nối db
 let trelloDatabaseInstance = null
 
-const mongoClientInstance = new MongoClient(MONGODB_URI, {
+const mongoClientInstance = new MongoClient(env.MONGO_URI, {
   serverApi: {
     version: ServerApiVersion.v1,
     strict: true,
@@ -36,7 +28,7 @@ export const CONNECT_DB = async () => {
     await mongoClientInstance.connect()
 
     // Lấy database
-    trelloDatabaseInstance = mongoClientInstance.db(DATABASE_NAME)
+    trelloDatabaseInstance = mongoClientInstance.db(env.DATABASE_NAME)
 
     return trelloDatabaseInstance
   } catch (error) {
