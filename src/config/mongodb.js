@@ -54,3 +54,8 @@ export const GET_DB = () => {
 
   return trelloDatabaseInstance
 }
+
+// Đống kết nối MongoDB khi cần
+export const CLOSE_DB = async () => {
+  await mongoClientInstance.close()
+}
