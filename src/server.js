@@ -1,5 +1,7 @@
 /* eslint-disable no-console */
 import express from 'express'
+import cors from 'cors'
+import { corsOptions } from './config/cors'
 import { CONNECT_DB, CLOSE_DB } from '~/config/mongodb'
 import exitHook from 'async-exit-hook'
 import { env } from '~/config/environment'
@@ -8,6 +10,9 @@ import { errorHandlingMiddleware } from './middlewares/errorHandlingMiddleware'
 
 const START_SERVER = () => {
   const app = express()
+
+  // Xử lí CORS
+  app.use(cors(corsOptions))
 
   // chú ý phải có dòng này thì req.body gửi lên mới là json được
   app.use(express.json())
