@@ -41,7 +41,6 @@ const findOneById = async (id) => {
       _id: new ObjectId(String(id))
     })
 
-
     return result
   } catch (error) {
     throw new Error(error)
