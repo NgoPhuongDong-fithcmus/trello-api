@@ -73,7 +73,22 @@ const getDetailBoard = async (id) => {
       } }
     ]).toArray()
 
-    return result[0] || {}
+    return result[0] || null
+  } catch (error) {
+    throw new Error(error)
+  }
+}
+
+// push columnId vao cuoi mang columnOrderIds
+const pushColumnOrderIds = async (column) => {
+  try {
+    const result = await GET_DB().collection(BOARD_COLLECTION_NAME).findOneAndUpdate(
+      { _id: new ObjectId(String(column.boardId)) },
+      { $push: { columnOrderIds: new ObjectId(String(column._id)) } },
+      { returnDocument: 'after' }
+    )
+
+    return result.value || null
   } catch (error) {
     throw new Error(error)
   }
@@ -84,7 +99,8 @@ export const boardModel = {
   BOARD_COLLECTION_SCHEMA,
   createNew,
   findOneById,
-  getDetailBoard
+  getDetailBoard,
+  pushColumnOrderIds
 }
 
 // String(id)
