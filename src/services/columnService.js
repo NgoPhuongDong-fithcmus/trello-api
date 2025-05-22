@@ -2,8 +2,8 @@
 import { slugify } from '~/utils/formatter'
 import { columnModel } from '~/models/columnModel'
 import { boardModel } from '~/models/boardModel'
-// import ApiError from '~/utils/ApiError'
-// import { StatusCodes } from 'http-status-codes'
+import ApiError from '~/utils/ApiError'
+import { StatusCodes } from 'http-status-codes'
 // import { cloneDeep } from 'lodash'
 const createNew = async (data) => {
   try {
@@ -29,6 +29,25 @@ const createNew = async (data) => {
   }
 }
 
+const update = async (columnId, reqBody) => {
+  try {
+    const updateData = {
+      ...reqBody,
+      updatedAt: Date.now()
+    }
+    const updatedColumn = await columnModel.update(columnId, updateData)
+
+    if (!updatedColumn) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'Board not found!')
+    }
+
+    return updatedColumn
+  } catch (error) {
+    throw error
+  }
+}
+
 export const columnService = {
-  createNew
+  createNew,
+  update
 }
