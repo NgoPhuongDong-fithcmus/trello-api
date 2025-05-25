@@ -97,6 +97,21 @@ const pushColumnOrderIds = async (column) => {
   }
 }
 
+
+const pullColumnOrderIds = async (column) => {
+  try {
+    const result = await GET_DB().collection(BOARD_COLLECTION_NAME).findOneAndUpdate(
+      { _id: new ObjectId(String(column.boardId)) },
+      { $pull: { columnOrderIds: new ObjectId(String(column._id)) } },
+      { returnDocument: 'after' }
+    )
+
+    return result
+  } catch (error) {
+    throw new Error(error)
+  }
+}
+
 const update = async (boardId, updateData) => {
   try {
     // Kiểm tra các field bị cấm mà client gửi lên
@@ -105,6 +120,10 @@ const update = async (boardId, updateData) => {
         delete updateData[field]
       }
     })
+
+    if (updateData.columnOrderIds) {
+      updateData.columnOrderIds = updateData.columnOrderIds.map(_id => (new ObjectId(String(_id))))
+    }
 
     const result = await GET_DB().collection(BOARD_COLLECTION_NAME).findOneAndUpdate(
       { _id: new ObjectId(String(boardId)) },
@@ -125,7 +144,8 @@ export const boardModel = {
   findOneById,
   getDetailBoard,
   pushColumnOrderIds,
-  update
+  update,
+  pullColumnOrderIds
 }
 
 // String(id)

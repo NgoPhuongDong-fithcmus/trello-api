@@ -17,6 +17,7 @@ const CARD_COLLECTION_SCHEMA = Joi.object({
   _destroy: Joi.boolean().default(false)
 })
 
+const FORBIDDEN_UPDATE_FIELD = ['_id', 'boardId', 'createdAt']
 const validateBeforeCreate = async (data) => {
   return await CARD_COLLECTION_SCHEMA.validateAsync(data, { abortEarly: true })
 }
@@ -50,9 +51,49 @@ const findOneById = async (id) => {
   }
 }
 
+const update = async (cardId, updateData) => {
+  try {
+    // Kiểm tra các field bị cấm mà client gửi lên
+    Object.keys(updateData).forEach(field => {
+      if (FORBIDDEN_UPDATE_FIELD.includes(field)) {
+        delete updateData[field]
+      }
+    })
+
+    // Biến đổi ObjectId cho cardId
+    if (updateData.columnId) {
+      updateData.columnId = new ObjectId(String(updateData.columnId))
+    }
+
+    const result = await GET_DB().collection(CARD_COLLECTION_NAME).findOneAndUpdate(
+      { _id: new ObjectId(String(cardId)) },
+      { $set: updateData },
+      { returnDocument: 'after' }
+    )
+
+    return result
+  } catch (error) {
+    throw new Error(error)
+  }
+}
+
+const deleteCardsByColumnId = async (columnId) => {
+  try {
+    const result = await GET_DB().collection(CARD_COLLECTION_NAME).deleteMany({
+      columnId: new ObjectId(String(columnId))
+    })
+
+    return result
+  } catch (error) {
+    throw new Error(error)
+  }
+}
+
 export const cardModel = {
   CARD_COLLECTION_NAME,
   CARD_COLLECTION_SCHEMA,
   createNew,
-  findOneById
+  findOneById,
+  update,
+  deleteCardsByColumnId
 }
