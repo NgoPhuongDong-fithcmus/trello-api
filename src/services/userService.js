@@ -5,6 +5,8 @@ import { StatusCodes } from 'http-status-codes'
 import bcryptjs from 'bcryptjs'
 import { v4 as uuidv4 } from 'uuid'
 import { pickInfoUser } from '~/utils/formatter'
+import { WEBSITE_DOMAIN } from '~/utils/constants'
+import { BrevoProvider } from '~/providers/BrevoProvider'
 
 const createNew = async (reqBody) => {
   try {
@@ -30,6 +32,16 @@ const createNew = async (reqBody) => {
     const getNewUser = await userModel.findOneById(createNewUser.insertedId)
 
     // Gửi email cho người dùng xác thực tài khoản
+    const verificationLink = `${WEBSITE_DOMAIN}/account/verification?email=${getNewUser.email}&token=${getNewUser.verifyToken}`
+    const customSubject = 'PLEASE VERIFY YOUR EMAIL BEFORE USING OUR SERVICES'
+    const htmlContent = `
+      <h3>Click link to verify:</h3>
+      <h3>${verificationLink}</h3>
+      <h3>babyboy, thanks for coming</h3>
+    `
+
+    // Gọi Provider gửi email
+    await BrevoProvider.sendEmail(getNewUser.email, customSubject, htmlContent)
 
     return pickInfoUser(getNewUser)
   } catch (error) {
