@@ -7,6 +7,8 @@ import { v4 as uuidv4 } from 'uuid'
 import { pickInfoUser } from '~/utils/formatter'
 import { WEBSITE_DOMAIN } from '~/utils/constants'
 import { BrevoProvider } from '~/providers/BrevoProvider'
+import { JwtProvider } from '~/providers/JwtProvider'
+import { env } from '~/config/environment'
 
 const createNew = async (reqBody) => {
   try {
@@ -48,6 +50,77 @@ const createNew = async (reqBody) => {
     throw error
   }
 }
+
+const verifyAccount = async (reqBody) => {
+  try {
+    // Kiểm tra email có tồn tại trong db không
+    const existedEmail = await userModel.findOneByEmail(reqBody.email)
+    if (!existedEmail) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'Email is not existed!')
+    }
+
+    if (existedEmail.isActive) {
+      throw new ApiError(StatusCodes.NOT_ACCEPTABLE, 'Your account is already activated!')
+    }
+
+    // Kiểm tra token có đúng không
+    if (existedEmail.verifyToken !== reqBody.token) {
+      throw new ApiError(StatusCodes.UNAUTHORIZED, 'Token is not correct!')
+    }
+
+    const updateData = {
+      isActive: true,
+      verifyToken: null
+    }
+
+    // Cập nhật thông tin người dùng
+    const updatedUser = await userModel.update(existedEmail._id, updateData)
+
+    return pickInfoUser(updatedUser)
+
+  } catch (error) {
+    throw error
+  }
+}
+
+const login = async (reqBody) => {
+  try {
+    // Kiểm tra email có tồn tại trong db không
+    const existedEmail = await userModel.findOneByEmail(reqBody.email)
+    if (!existedEmail) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'Email is not existed!')
+    }
+
+    // Kiểm tra tài khoản đã được kích hoạt chưa
+    if (!existedEmail.isActive) {
+      throw new ApiError(StatusCodes.NOT_ACCEPTABLE, 'Your account is not activated! Please verify your email first. Then login again')
+    }
+
+    // Kiểm tra mật khẩu có đúng không
+    const isPasswordCorrect = bcryptjs.compareSync(reqBody.password, existedEmail.password)
+    if (!isPasswordCorrect) {
+      throw new ApiError(StatusCodes.UNAUTHORIZED, 'Your email or password is not correct!')
+    }
+
+    // Nếu mọi thứ ổn thì tạo token đăng nhập trả về FE
+    // Tạo thông tin đính kèm trong JWT token: bao gồm _id và email của user
+    const infoUser = {
+      _id: existedEmail._id,
+      email: existedEmail.email
+    }
+
+    // Tạo ra accessToken và refreshToken trả về FE
+    const accessToken = await JwtProvider.generateToken(infoUser, env.ACCESS_TOKEN_SECRET_SIGNATURE, env.ACCESS_TOKEN_LIFE)
+    const refreshToken = await JwtProvider.generateToken(infoUser, env.REFRESH_TOKEN_SECRET_SIGNATURE, env.REFRESH_TOKEN_LIFE)
+
+    return { accessToken, refreshToken, ...pickInfoUser(existedEmail) }
+  } catch (error) {
+    throw error
+  }
+}
+
 export const userService = {
-  createNew
+  createNew,
+  verifyAccount,
+  login
 }
