@@ -110,10 +110,44 @@ const login = async (reqBody) => {
     }
 
     // Tạo ra accessToken và refreshToken trả về FE
-    const accessToken = await JwtProvider.generateToken(infoUser, env.ACCESS_TOKEN_SECRET_SIGNATURE, env.ACCESS_TOKEN_LIFE)
-    const refreshToken = await JwtProvider.generateToken(infoUser, env.REFRESH_TOKEN_SECRET_SIGNATURE, env.REFRESH_TOKEN_LIFE)
+    const accessToken = await JwtProvider.generateToken(
+      infoUser,
+      env.ACCESS_TOKEN_SECRET_SIGNATURE,
+      // 5
+      env.ACCESS_TOKEN_LIFE
+    )
+    const refreshToken = await JwtProvider.generateToken(
+      infoUser,
+      env.REFRESH_TOKEN_SECRET_SIGNATURE,
+      // 15
+      env.REFRESH_TOKEN_LIFE
+    )
 
     return { accessToken, refreshToken, ...pickInfoUser(existedEmail) }
+  } catch (error) {
+    throw error
+  }
+}
+
+const refreshToken = async (refreshToken) => {
+  try {
+
+    const refreshDecoded = await JwtProvider.verifyToken(refreshToken, env.REFRESH_TOKEN_SECRET_SIGNATURE)
+
+    // Lưu những thông tin người dùng unique để tiết kiệm query vào DB để lấy data
+    const userInfo = {
+      _id: refreshDecoded._id,
+      email: refreshDecoded.email
+    }
+
+    const accessToken = await JwtProvider.generateToken(
+      userInfo,
+      env.ACCESS_TOKEN_SECRET_SIGNATURE,
+      // 5
+      env.ACCESS_TOKEN_LIFE
+    )
+
+    return { accessToken }
   } catch (error) {
     throw error
   }
@@ -122,5 +156,6 @@ const login = async (reqBody) => {
 export const userService = {
   createNew,
   verifyAccount,
-  login
+  login,
+  refreshToken
 }
