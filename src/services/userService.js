@@ -153,9 +153,49 @@ const refreshToken = async (refreshToken) => {
   }
 }
 
+const update = async (userId, reqBody) => {
+  try {
+    // Cập nhật thông tin người dùng
+    const existedUser = await userModel.findOneById(userId)
+    if (!existedUser) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'User not found!')
+    }
+    if (!existedUser.isActive) {
+      throw new ApiError(StatusCodes.NOT_ACCEPTABLE, 'Your account is not activated! Please verify your email first. Then login again')
+    }
+
+    let updatedUser = null
+
+    // TH người dùng muốn đổi mật khẩu
+    if (reqBody.current_password && reqBody.new_password) {
+      // Kiểm tra mật cũ có đúng không
+      const isPasswordCurrentCorrect = bcryptjs.compareSync(reqBody.current_password, existedUser.password)
+      if (!isPasswordCurrentCorrect) {
+        throw new ApiError(StatusCodes.NOT_ACCEPTABLE, 'Your current password is not correct!')
+      }
+      // Nếu mật khẩu cũ đúng thì cập nhật mật khẩu mới vào db
+      if (reqBody.new_password !== reqBody.new_password_confirmation) {
+        throw new ApiError(StatusCodes.UNPROCESSABLE_ENTITY, 'New password and confirmation do not match!')
+      }
+      updatedUser = await userModel.update(existedUser._id, {
+        password: bcryptjs.hashSync(reqBody.new_password, 8)
+      })
+    }
+    // TH người dùng chỉ muốn cập nhật thông tin khác ngoài mật khẩu
+    else {
+      updatedUser = await userModel.update(existedUser._id, reqBody)
+    }
+
+    return pickInfoUser(updatedUser)
+  } catch (error) {
+    throw error
+  }
+}
+
 export const userService = {
   createNew,
   verifyAccount,
   login,
-  refreshToken
+  refreshToken,
+  update
 }
