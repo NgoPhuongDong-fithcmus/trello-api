@@ -41,12 +41,18 @@ const validateBeforeCreate = async (data) => {
   return await BOARD_COLLECTION_SCHEMA.validateAsync(data, { abortEarly: true })
 }
 
-const createNew = async (data) => {
+const createNew = async (userId, data) => {
   try {
 
     const validData = await validateBeforeCreate(data)
 
-    return await GET_DB().collection(BOARD_COLLECTION_NAME).insertOne(validData)
+    const newBoardCreated = {
+      ...validData,
+      ownerIds: [new ObjectId(String(userId))],
+      memberIds: [new ObjectId(String(userId))]
+    }
+
+    return await GET_DB().collection(BOARD_COLLECTION_NAME).insertOne(newBoardCreated)
   } catch (error) {
     throw new Error(error)
   }
@@ -64,15 +70,22 @@ const findOneById = async (id) => {
   }
 }
 
-const getDetailBoard = async (id) => {
+const getDetailBoard = async (userId, boardId) => {
   try {
     // const result = await GET_DB().collection(BOARD_COLLECTION_NAME).findOne({ _id: new ObjectId(String(id)) })
+
+    const queryCondition = [
+      { _id: new ObjectId(String(boardId)) },
+      { _destroy: false },
+      { $or: [
+        { ownerIds: { $all: [new ObjectId(String(userId))] } },
+        { memberIds: { $all: [new ObjectId(String(userId))] } }
+      ] }
+    ]
+
     // aggregate lấy dữ liệu giống như query SQL vậy
     const result = await GET_DB().collection(BOARD_COLLECTION_NAME).aggregate([
-      { $match: {
-        _id: new ObjectId(String(id)),
-        _destroy: false
-      } },
+      { $match: { $and: queryCondition } },
       { $lookup: {
         from: columnModel.COLUMN_COLLECTION_NAME,
         localField: '_id',

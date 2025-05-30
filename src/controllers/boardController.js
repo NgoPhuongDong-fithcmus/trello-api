@@ -1,10 +1,15 @@
 import { StatusCodes } from 'http-status-codes'
 import { boardService } from '~/services/boardService'
+import ApiError from '~/utils/ApiError'
 
 const createNew = async ( req, res, next ) => {
 
   try {
-    const createBoard = await boardService.createNew(req.body)
+    const userId = req.jwtDecoded._id
+    const createBoard = await boardService.createNew(userId, req.body)
+    if (!createBoard) {
+      return next(new ApiError(StatusCodes.BAD_REQUEST, 'Create board failed!'))
+    }
 
     res.status(StatusCodes.CREATED).json(createBoard)
   } catch (error) {
@@ -15,8 +20,9 @@ const createNew = async ( req, res, next ) => {
 const getDetailBoard = async ( req, res, next ) => {
   try {
     const boardId = req.params.id
+    const userId = req.jwtDecoded._id
 
-    const board = await boardService.getDetailBoard(boardId)
+    const board = await boardService.getDetailBoard(userId, boardId)
 
     res.status(StatusCodes.OK).json(board)
   } catch (error) {
