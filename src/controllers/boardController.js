@@ -44,9 +44,24 @@ const moveCardsToDifferentColumnApi = async ( req, res, next ) => {
     next(error)
   }
 }
+
+const getListBoards = async ( req, res, next ) => {
+  try {
+    const userId = req.jwtDecoded._id
+
+    const { pageNumber, itemsPerPage } = req.query
+    const result = await boardService.getListBoards(userId, pageNumber, itemsPerPage)
+    res.status(StatusCodes.OK).json(result)
+  } catch (error) {
+    next(error)
+  }
+
+}
+
 export const boardController = {
   createNew,
   getDetailBoard,
   update,
-  moveCardsToDifferentColumnApi
+  moveCardsToDifferentColumnApi,
+  getListBoards
 }
