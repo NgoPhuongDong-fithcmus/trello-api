@@ -2,6 +2,7 @@
 import { slugify } from '~/utils/formatter'
 import { cardModel } from '~/models/cardModel'
 import { columnModel } from '~/models/columnModel'
+import { CloudinaryProvider } from '~/providers/CloudinaryProvider'
 // import ApiError from '~/utils/ApiError'
 // import { StatusCodes } from 'http-status-codes'
 // import { cloneDeep } from 'lodash'
@@ -26,6 +27,36 @@ const createNew = async (data) => {
   }
 }
 
+const update = async (cardId, updateData, cardFile) => {
+  try {
+
+    const updateCard = {
+      ...updateData,
+      updatedAt: Date.now()
+    }
+
+    let updatedCard = {}
+
+    if (cardFile) {
+      const uploadResult = await CloudinaryProvider.streamUpload(cardFile.buffer, 'cards-cover')
+
+      // Lưu lại URL(secure_url) của file ảnh vào DB
+      updatedCard = await cardModel.update(cardId, {
+        cover: uploadResult.secure_url
+      })
+    }
+    // Update binh thuong
+    else {
+      updatedCard = await cardModel.update(cardId, updateCard)
+    }
+
+    return updatedCard
+  } catch (error) {
+    throw error
+  }
+}
+
 export const cardService = {
-  createNew
+  createNew,
+  update
 }

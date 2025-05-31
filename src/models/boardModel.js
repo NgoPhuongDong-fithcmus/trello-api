@@ -7,6 +7,7 @@ import { BOARD_TYPES } from '~/utils/constants'
 import { columnModel } from './columnModel'
 import { cardModel } from './cardModel'
 import { skipPage } from '~/utils/algorithms'
+import { userModel } from './userModel'
 // Define Collection (name & schema)
 const BOARD_COLLECTION_NAME = 'boards'
 const BOARD_COLLECTION_SCHEMA = Joi.object({
@@ -97,6 +98,24 @@ const getDetailBoard = async (userId, boardId) => {
         localField: '_id',
         foreignField: 'boardId',
         as: 'cards'
+      } },
+      { $lookup: {
+        from: userModel.USER_COLLECTION_NAME,
+        localField: 'ownerIds',
+        foreignField: '_id',
+        as: 'owners',
+        pipeline: [
+          { $project: { password: 0, verifyToken: 0 } }
+        ]
+      } },
+      { $lookup: {
+        from: userModel.USER_COLLECTION_NAME,
+        localField: 'memberIds',
+        foreignField: '_id',
+        as: 'members',
+        pipeline: [
+          { $project: { password: 0, verifyToken: 0 } }
+        ]
       } }
     ]).toArray()
 
