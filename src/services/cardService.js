@@ -45,11 +45,12 @@ const update = async (cardId, updateData, cardFile, infoUser) => {
         cover: uploadResult.secure_url
       })
     }
+    // Thêm hoặc xóa thành viên của card
+    else if (updateCard.memberInfo) {
+      updatedCard = await cardModel.updateMembers(cardId, updateCard.memberInfo)
+    }
     else if (updateCard.commentToAdd) {
-      // Tạo dữ liệu comment để thêm vào Database, cần bổ sung những field cần thiết
-      // const commentData = {
-      //   ...updateData.newComment
-      // }
+      // Nếu có comment thì thêm comment vào card
       const commentData = {
         ...updateData.commentToAdd,
         userId: infoUser._id,
