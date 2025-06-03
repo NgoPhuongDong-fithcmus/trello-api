@@ -4,6 +4,8 @@ import { GET_DB } from '~/config/mongodb'
 import { OBJECT_ID_RULE, OBJECT_ID_RULE_MESSAGE } from '~/utils/validators'
 import { ObjectId } from 'mongodb'
 import { BOARD_INVITATION_STATUS, INVITATION_TYPES } from '~/utils/constants'
+import { userModel } from './userModel'
+import { boardModel } from './boardModel'
 // Define Collection (name & schema)
 
 const INVITATION_COLLECTION_NAME = 'invitations'
@@ -25,6 +27,50 @@ const FORBIDDEN_UPDATE_FIELD = ['_id', 'createdAt', 'inviteeId', 'inviterId', 't
 
 const validateBeforeCreate = async (data) => {
   return await INVITATION_COLLECTION_SCHEMA.validateAsync(data, { abortEarly: true })
+}
+
+const findAllInvitationsByUser = async (userId) => {
+  try {
+    const queryCondition = [
+      { _destroy: false },
+      { inviteeId: new ObjectId(String(userId)) } // tìm kiếm theo inviteeId - người nhận lời mời
+    ]
+
+    const results = await GET_DB().collection(INVITATION_COLLECTION_NAME).aggregate(
+      [
+        { $match: { $and: queryCondition } },
+        { $lookup: {
+          from: userModel.USER_COLLECTION_NAME,
+          localField: 'inviterId',
+          foreignField: '_id',
+          as: 'inviter',
+          pipeline: [
+            { $project: { password: 0, verifyToken: 0 } }
+          ]
+        } },
+        { $lookup: {
+          from: userModel.USER_COLLECTION_NAME,
+          localField: 'inviteeId',
+          foreignField: '_id',
+          as: 'invitee',
+          pipeline: [
+            { $project: { password: 0, verifyToken: 0 } }
+          ]
+        } },
+        { $lookup: {
+          from: boardModel.BOARD_COLLECTION_NAME,
+          localField: 'boardInvitation.boardId',
+          foreignField: '_id',
+          as: 'board'
+        } }
+      ],
+      { collation: { locale: 'en', strength: 2 } } // strength: 2 là so sánh không phân biệt chữ hoa chữ thường
+    ).toArray()
+
+    return results
+  } catch (error) {
+    throw new Error(error)
+  }
 }
 
 const createNewInvitationInBoard = async (data) => {
@@ -91,5 +137,6 @@ export const invitationModel = {
   INVITATION_COLLECTION_SCHEMA,
   createNewInvitationInBoard,
   findOneById,
-  update
+  update,
+  findAllInvitationsByUser
 }

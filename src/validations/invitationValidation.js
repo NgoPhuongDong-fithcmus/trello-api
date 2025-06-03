@@ -17,6 +17,7 @@ const createNewInvitationInBoard = async ( req, res, next ) => {
   }
 }
 
+
 export const invitationValidation = {
   createNewInvitationInBoard
 }
