@@ -180,7 +180,7 @@ const update = async (boardId, updateData) => {
   }
 }
 
-const getListBoards = async (userId, pageNumber, itemsPerPage) => {
+const getListBoards = async (userId, pageNumber, itemsPerPage, querySearchPath) => {
   try {
     const queryCondition = [
       // Điều kiện 1: board chưa bị xóa
@@ -192,6 +192,16 @@ const getListBoards = async (userId, pageNumber, itemsPerPage) => {
       ]
       }
     ]
+
+    // Nếu có querySearchPath thì thêm vào điều kiện tìm kiếm
+    if (querySearchPath) {
+      // xử lý querySearchPath là một object, và mỗi key của nó sẽ là một trường trong board cần tìm kiếm
+      // Ví dụ: querySearchPath = { title: 'abc', description: 'xyz' }
+      Object.keys(querySearchPath).forEach(key => {
+        const searchRegex = new RegExp(querySearchPath[key], 'i')
+        queryCondition.push({ [key]: { $regex: searchRegex } })
+      })
+    }
 
     const query = await GET_DB().collection(BOARD_COLLECTION_NAME).aggregate(
       [

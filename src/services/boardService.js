@@ -92,7 +92,7 @@ const moveCardsToDifferentColumnApi = async (reqBody) => {
   }
 }
 
-const getListBoards = async (userId, pageNumber, itemsPerPage) => {
+const getListBoards = async (userId, pageNumber, itemsPerPage, querySearchPath) => {
   try {
 
     if (!pageNumber || isNaN(pageNumber) || pageNumber < 1) {
@@ -103,7 +103,7 @@ const getListBoards = async (userId, pageNumber, itemsPerPage) => {
       itemsPerPage = DEFAULT_ITEMS_PER_PAGE
     }
 
-    const result = await boardModel.getListBoards(userId, parseInt(pageNumber), parseInt(itemsPerPage))
+    const result = await boardModel.getListBoards(userId, parseInt(pageNumber), parseInt(itemsPerPage), querySearchPath)
     return result
   } catch (error) {
     throw error

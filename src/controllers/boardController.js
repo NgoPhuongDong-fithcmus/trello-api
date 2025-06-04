@@ -33,7 +33,10 @@ const getDetailBoard = async ( req, res, next ) => {
 const update = async ( req, res, next ) => {
   try {
     const boardId = req.params.id
-    const updatedBoard = await boardService.update(boardId, req.body)
+
+    const querySearchPath = req.query.searchPath
+
+    const updatedBoard = await boardService.update(boardId, req.body, querySearchPath)
 
     res.status(StatusCodes.OK).json(updatedBoard)
   } catch (error) {
