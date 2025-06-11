@@ -10,6 +10,6 @@ export const inviteUserToBoardSocket = (socket) => {
   // Xử lý sự kiện khi có người dùng kết nối
   socket.on('disconnect', () => {
     // eslint-disable-next-line no-console
-    console.log(`Socket disconnected: ${socket.id}`)
+    // console.log(`Socket disconnected: ${socket.id}`)
   })
 }

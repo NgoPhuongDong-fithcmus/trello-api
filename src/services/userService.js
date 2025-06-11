@@ -84,6 +84,36 @@ const verifyAccount = async (reqBody) => {
   }
 }
 
+const verifyResetPassword = async (reqBody) => {
+  try {
+    const existedUser = await userModel.findOneByEmail(reqBody.email)
+    if (!existedUser) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'Email is not existed!')
+    }
+
+    if (!existedUser.isActive) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, 'Your account is not activated yet!')
+    }
+
+    if (existedUser.verifyTokenResetPassword !== reqBody.token) {
+      throw new ApiError(StatusCodes.UNAUTHORIZED, 'Reset token is not correct!')
+    }
+
+    const updateData = {
+      isActive: true,
+      verifyTokenResetPassword: null
+    }
+
+    // Cập nhật thông tin người dùng
+    const updatedUser = await userModel.update(existedUser._id, updateData)
+
+    return pickInfoUser(updatedUser)
+
+  } catch (error) {
+    throw error
+  }
+}
+
 const login = async (reqBody) => {
   try {
     // Kiểm tra email có tồn tại trong db không
@@ -201,10 +231,71 @@ const update = async (userId, reqBody, userAvatarFile) => {
   }
 }
 
+const forgotPassword = async (reqBody) => {
+  try {
+    // Kiểm tra email có tồn tại trong db không
+    const existedEmail = await userModel.findOneByEmail(reqBody.email)
+    if (!existedEmail) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'Email is not existed!')
+    }
+
+    // Tạo token mới để reset password
+    const resetToken = uuidv4()
+
+    // Cập nhật token vào db
+    await userModel.update(existedEmail._id, { verifyTokenResetPassword: resetToken })
+
+    // Gửi email cho người dùng với link reset password
+    const resetLink = `${WEBSITE_DOMAIN}/account/reset-password?email=${existedEmail.email}&token=${resetToken}`
+    const customSubject = 'PLEASE RESET YOUR PASSWORD'
+    const htmlContent = `
+      <h3>Click link to reset password:</h3>
+      <h3>${resetLink}</h3>
+      <h3>babyboy, thanks for coming</h3>
+    `
+
+    // Gọi Provider gửi email
+    await BrevoProvider.sendEmail(existedEmail.email, customSubject, htmlContent)
+
+  } catch (error) {
+    throw error
+  }
+}
+
+const resetPassword = async (reqBody) => {
+  try {
+    const { email, password, password_confirm } = reqBody
+
+    // Kiểm tra email có tồn tại trong db không
+    const existedEmail = await userModel.findOneByEmail(email)
+    if (!existedEmail) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'Email is not existed!')
+    }
+
+    // Kiểm tra mật khẩu có giống nhau không
+    if (password !== password_confirm) {
+      throw new ApiError(StatusCodes.UNPROCESSABLE_ENTITY, 'Password confirmation does not match!')
+    }
+
+    // Cập nhật mật khẩu mới vào db
+    const result = await userModel.update(existedEmail._id, {
+      password: bcryptjs.hashSync(password, 8),
+      verifyTokenResetPassword: null
+    })
+
+    return { result, message: 'Reset password successfully!' }
+  } catch (error) {
+    throw error
+  }
+}
+
 export const userService = {
   createNew,
   verifyAccount,
   login,
   refreshToken,
-  update
+  update,
+  forgotPassword,
+  verifyResetPassword,
+  resetPassword
 }

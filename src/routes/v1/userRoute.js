@@ -14,6 +14,15 @@ router.route('/verify')
 router.route('/login')
   .post(userValidation.login, userController.login)
 
+router.route('/forgot_password')
+  .post(userValidation.forgotPassword, userController.forgotPassword)
+
+router.route('/verify_resetPassword')
+  .put(userValidation.verifyResetPassword, userController.verifyResetPassword)
+
+router.route('/reset_password')
+  .post(userValidation.resetPassword, userController.resetPassword)
+
 router.route('/logout')
   .delete(userController.logout)
 

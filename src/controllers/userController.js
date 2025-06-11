@@ -25,6 +25,17 @@ const verifyAccount = async ( req, res, next ) => {
   }
 }
 
+const verifyResetPassword = async ( req, res, next ) => {
+
+  try {
+    const result = await userService.verifyResetPassword(req.body)
+
+    res.status(StatusCodes.CREATED).json(result)
+  } catch (error) {
+    next(error)
+  }
+}
+
 const login = async ( req, res, next ) => {
 
   try {
@@ -102,11 +113,34 @@ const update = async ( req, res, next ) => {
   }
 }
 
+const forgotPassword = async ( req, res, next ) => {
+  try {
+    const result = await userService.forgotPassword(req.body)
+
+    res.status(StatusCodes.OK).json(result)
+  } catch (error) {
+    next(error)
+  }
+}
+
+const resetPassword = async ( req, res, next ) => {
+  try {
+    const result = await userService.resetPassword(req.body)
+
+    res.status(StatusCodes.OK).json(result)
+  } catch (error) {
+    next(error)
+  }
+}
+
 export const userController = {
   createNew,
   verifyAccount,
   login,
   logout,
   refreshToken,
-  update
+  update,
+  forgotPassword,
+  verifyResetPassword,
+  resetPassword
 }
