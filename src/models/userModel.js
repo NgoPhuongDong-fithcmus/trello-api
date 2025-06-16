@@ -22,6 +22,8 @@ const USER_COLLECTION_SCHEMA = Joi.object({
   verifyTokenResetPassword: Joi.string().default(null),
   createdAt: Joi.date().timestamp('javascript').default(Date.now),
   updatedAt: Joi.date().timestamp('javascript').default(null),
+  require_2fa: Joi.boolean().default(false),
+  is_2fa_verified: Joi.boolean().default(false),
   _destroy: Joi.boolean().default(false)
 })
 

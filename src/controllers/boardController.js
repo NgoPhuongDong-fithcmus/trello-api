@@ -1,6 +1,7 @@
 import { StatusCodes } from 'http-status-codes'
 import { boardService } from '~/services/boardService'
 import ApiError from '~/utils/ApiError'
+import { DEFAULT_ITEMS_PER_PAGE } from '~/utils/constants'
 
 const createNew = async ( req, res, next ) => {
 
@@ -58,8 +59,10 @@ const getListBoards = async ( req, res, next ) => {
   try {
     const userId = req.jwtDecoded._id
 
-    const { pageNumber, itemsPerPage } = req.query
-    const result = await boardService.getListBoards(userId, pageNumber, itemsPerPage)
+    const { page } = req.query
+    const itemsPerPage = DEFAULT_ITEMS_PER_PAGE
+
+    const result = await boardService.getListBoards(userId, page, itemsPerPage)
     res.status(StatusCodes.OK).json(result)
   } catch (error) {
     next(error)

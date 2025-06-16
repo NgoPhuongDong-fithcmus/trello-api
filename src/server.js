@@ -46,10 +46,19 @@ const START_SERVER = () => {
     inviteUserToBoardSocket(socket)
   } )
 
-  server.listen(env.APP_PORT, env.APP_HOST, () => {
-    // eslint-disable-next-line no-console
-    console.log(`Hello ${env.AUTHOR}, I am running at http://${ env.APP_HOST }:${ env.APP_PORT }/`)
-  })
+  if (env.BUILD_MODE === 'production') {
+    server.listen(env.APP_PORT, env.APP_HOST, () => {
+      // eslint-disable-next-line no-console
+      console.log(`Production: Hello ${env.AUTHOR}, I am running at http://${ env.APP_HOST }:${ env.APP_PORT }/`)
+    })
+  }
+  else {
+    server.listen(env.APP_PORT, env.APP_HOST, () => {
+      // eslint-disable-next-line no-console
+      console.log(`Local DEV: Hello ${env.AUTHOR}, I am running at http://${ env.APP_HOST }:${ env.APP_PORT }/`)
+    })
+  }
+
 
   // Thực hiện các tác vụ cleanup trước khi dừng server
   exitHook(() => {

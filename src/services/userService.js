@@ -10,17 +10,33 @@ import { BrevoProvider } from '~/providers/BrevoProvider'
 import { JwtProvider } from '~/providers/JwtProvider'
 import { env } from '~/config/environment'
 import { CloudinaryProvider } from '~/providers/CloudinaryProvider'
+import { userSessionModel } from '~/models/userSessionModel'
+import { authenticator } from 'otplib'
+import { twoFaSecretKeyModel } from '~/models/twofaSecretKeyModel'
+import QRCode from 'qrcode'
+
+const serviceName = 'Trello Web by BabyboyDev'
+
+const getUserById = async (userId) => {
+  try {
+    const user = await userModel.findOneById(userId)
+    if (!user) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'User not found!')
+    }
+    return pickInfoUser(user)
+  } catch (error) {
+    throw error
+  }
+}
 
 const createNew = async (reqBody) => {
   try {
 
-    // Kiểm tra email đã tồn tại trong db chưa
     const existedEmail = await userModel.findOneByEmail(reqBody.email)
     if (existedEmail) {
       throw new ApiError(StatusCodes.CONFLICT, 'Email is already existed!')
     }
     // Tạo data để lưu vào db
-    // Lấy username từ email
     const usernameFromEmail = reqBody.email.split('@')[0]
     const newUser = {
       email: reqBody.email,
@@ -30,11 +46,9 @@ const createNew = async (reqBody) => {
       verifyToken: uuidv4()
     }
 
-    // Lưu user vào db
     const createNewUser = await userModel.createNew(newUser)
     const getNewUser = await userModel.findOneById(createNewUser.insertedId)
 
-    // Gửi email cho người dùng xác thực tài khoản
     const verificationLink = `${WEBSITE_DOMAIN}/account/verification?email=${getNewUser.email}&token=${getNewUser.verifyToken}`
     const customSubject = 'PLEASE VERIFY YOUR EMAIL BEFORE USING OUR SERVICES'
     const htmlContent = `
@@ -43,7 +57,6 @@ const createNew = async (reqBody) => {
       <h3>babyboy, thanks for coming</h3>
     `
 
-    // Gọi Provider gửi email
     await BrevoProvider.sendEmail(getNewUser.email, customSubject, htmlContent)
 
     return pickInfoUser(getNewUser)
@@ -54,7 +67,6 @@ const createNew = async (reqBody) => {
 
 const verifyAccount = async (reqBody) => {
   try {
-    // Kiểm tra email có tồn tại trong db không
     const existedEmail = await userModel.findOneByEmail(reqBody.email)
     if (!existedEmail) {
       throw new ApiError(StatusCodes.NOT_FOUND, 'Email is not existed!')
@@ -64,7 +76,6 @@ const verifyAccount = async (reqBody) => {
       throw new ApiError(StatusCodes.NOT_ACCEPTABLE, 'Your account is already activated!')
     }
 
-    // Kiểm tra token có đúng không
     if (existedEmail.verifyToken !== reqBody.token) {
       throw new ApiError(StatusCodes.UNAUTHORIZED, 'Token is not correct!')
     }
@@ -74,7 +85,6 @@ const verifyAccount = async (reqBody) => {
       verifyToken: null
     }
 
-    // Cập nhật thông tin người dùng
     const updatedUser = await userModel.update(existedEmail._id, updateData)
 
     return pickInfoUser(updatedUser)
@@ -104,7 +114,6 @@ const verifyResetPassword = async (reqBody) => {
       verifyTokenResetPassword: null
     }
 
-    // Cập nhật thông tin người dùng
     const updatedUser = await userModel.update(existedUser._id, updateData)
 
     return pickInfoUser(updatedUser)
@@ -114,47 +123,60 @@ const verifyResetPassword = async (reqBody) => {
   }
 }
 
-const login = async (reqBody) => {
+const login = async (reqBody, deviceId) => {
   try {
-    // Kiểm tra email có tồn tại trong db không
     const existedEmail = await userModel.findOneByEmail(reqBody.email)
     if (!existedEmail) {
       throw new ApiError(StatusCodes.NOT_FOUND, 'Email is not existed!')
     }
 
-    // Kiểm tra tài khoản đã được kích hoạt chưa
     if (!existedEmail.isActive) {
       throw new ApiError(StatusCodes.NOT_ACCEPTABLE, 'Your account is not activated! Please verify your email first. Then login again')
     }
 
-    // Kiểm tra mật khẩu có đúng không
     const isPasswordCorrect = bcryptjs.compareSync(reqBody.password, existedEmail.password)
     if (!isPasswordCorrect) {
       throw new ApiError(StatusCodes.UNAUTHORIZED, 'Your email or password is not correct!')
     }
 
-    // Nếu mọi thứ ổn thì tạo token đăng nhập trả về FE
-    // Tạo thông tin đính kèm trong JWT token: bao gồm _id và email của user
     const infoUser = {
       _id: existedEmail._id,
       email: existedEmail.email
     }
 
-    // Tạo ra accessToken và refreshToken trả về FE
     const accessToken = await JwtProvider.generateToken(
       infoUser,
       env.ACCESS_TOKEN_SECRET_SIGNATURE,
-      // 5
       env.ACCESS_TOKEN_LIFE
     )
     const refreshToken = await JwtProvider.generateToken(
       infoUser,
       env.REFRESH_TOKEN_SECRET_SIGNATURE,
-      // 15
       env.REFRESH_TOKEN_LIFE
     )
 
-    return { accessToken, refreshToken, ...pickInfoUser(existedEmail) }
+    let resUser = pickInfoUser(existedEmail)
+    let currentUserSession = await userSessionModel.findOneUserSession({
+      userId: existedEmail._id,
+      deviceId: deviceId
+    })
+
+    if (!currentUserSession) {
+      currentUserSession = await userSessionModel.insertOneUserSession({
+        userId: existedEmail._id.toString(),
+        deviceId: deviceId,
+        is_2fa_verified: false,
+        last_login: `${Date.now()}`
+      })
+    }
+    resUser['is_2fa_verified'] = currentUserSession.is_2fa_verified
+    resUser['last_login'] = currentUserSession.last_login
+
+    await userModel.update(existedEmail._id, {
+      is_2fa_verified: currentUserSession.is_2fa_verified
+    })
+
+    return { accessToken, refreshToken, ...pickInfoUser(existedEmail), ...resUser }
   } catch (error) {
     throw error
   }
@@ -162,6 +184,8 @@ const login = async (reqBody) => {
 
 const refreshToken = async (refreshToken) => {
   try {
+
+    // console.log('refreshToken', refreshToken)
 
     const refreshDecoded = await JwtProvider.verifyToken(refreshToken, env.REFRESH_TOKEN_SECRET_SIGNATURE)
 
@@ -289,6 +313,130 @@ const resetPassword = async (reqBody) => {
   }
 }
 
+const get2FAQRCode = async (userId) => {
+  try {
+    const user = await userModel.findOneById(userId)
+    if (!user) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'User not found!')
+    }
+
+    // Biến lưu trữ 2fa secret key của user
+    let twoFactorSecretKeyValue = null
+
+    const twoFactorSecretKey = await twoFaSecretKeyModel.findOneByUserId(userId)
+
+    if (!twoFactorSecretKey) {
+      const newTwoFactorSecretKey = await twoFaSecretKeyModel.insertOneSecretKey({
+        userId: user._id.toString(),
+        secretValue: authenticator.generateSecret()
+      })
+
+      twoFactorSecretKeyValue = newTwoFactorSecretKey.secretValue
+    } else {
+      twoFactorSecretKeyValue = twoFactorSecretKey.secretValue
+    }
+
+    // Tạo Otp Auth Token URL để hiển thị QR Code
+    const otpAuthToken = authenticator.keyuri(
+      user.username,
+      serviceName,
+      twoFactorSecretKeyValue
+    )
+
+    // Tạo ảnh QR Code đưa về cho client
+    const QRCodeImageUrl = await QRCode.toDataURL(otpAuthToken)
+
+    return { qrcode: QRCodeImageUrl }
+  } catch (error) {
+    throw error
+  }
+}
+
+const setup2FA_QRCode = async (userId, otpToken, deviceId) => {
+  try {
+
+    const user = await userModel.findOneById(userId)
+    if (!user) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'User not found!')
+    }
+
+    const twoFactorSecretKey = await twoFaSecretKeyModel.findOneByUserId(userId)
+    // console.log('twoFactorSecretKey', twoFactorSecretKey)
+    if (!twoFactorSecretKey) {
+      throw new ApiError(StatusCodes.NOT_FOUND, '2FA secret key not found!')
+    }
+
+    const isValidOtp = authenticator.verify({
+      token: otpToken,
+      secret: twoFactorSecretKey.secretValue
+    })
+
+    if (!isValidOtp) {
+      throw new ApiError(StatusCodes.NOT_ACCEPTABLE, 'OTP token is not valid!')
+    }
+
+    const updatedUser = await userModel.update(user._id, {
+      require_2fa: true
+    })
+
+    // Tạo phiên đăng nhập cho người dùng
+    const newUserSession = await userSessionModel.updateUserSession(
+      { userId: user._id.toString(), deviceId: deviceId },
+      { $set: { is_2fa_verified: true, last_login: `${Date.now()}` } },
+      { returnDocument: 'after' }
+    )
+
+    const resUpdatedUser = { ...pickInfoUser(updatedUser), is_2fa_verified: newUserSession.is_2fa_verified }
+
+    return resUpdatedUser
+  } catch (error) {
+    throw error
+  }
+}
+
+const verify2FA = async (userId, otpToken, deviceId) => {
+  try {
+    const user = await userModel.findOneById(userId)
+    if (!user) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'User not found!')
+    }
+
+    const twoFactorSecretKey = await twoFaSecretKeyModel.findOneByUserId(user._id)
+    // console.log('twoFactorSecretKey', twoFactorSecretKey)
+    if (!twoFactorSecretKey) {
+      throw new ApiError(StatusCodes.NOT_FOUND, '2FA secret key not found!')
+    }
+
+    const isValidOtp = authenticator.verify({
+      token: otpToken,
+      secret: twoFactorSecretKey.secretValue
+    })
+
+    if (!isValidOtp) {
+      throw new ApiError(StatusCodes.NOT_ACCEPTABLE, 'OTP token is not valid!')
+    }
+
+    const updatedUser = await userSessionModel.updateUserSession(
+      { userId: user._id.toString(), deviceId: deviceId },
+      { $set: { is_2fa_verified: true, updatedAt: Date.now() } },
+      { returnDocument: 'after' }
+    )
+
+    if (!updatedUser) {
+      throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, 'Failed to verify user 2FA status!')
+    }
+
+    await userModel.update(user._id, {
+      is_2fa_verified: true
+    })
+
+    return { ...pickInfoUser(user), is_2fa_verified: updatedUser.is_2fa_verified, last_login: updatedUser.last_login }
+
+  } catch (error) {
+    throw error
+  }
+}
+
 export const userService = {
   createNew,
   verifyAccount,
@@ -297,5 +445,9 @@ export const userService = {
   update,
   forgotPassword,
   verifyResetPassword,
-  resetPassword
+  resetPassword,
+  get2FAQRCode,
+  setup2FA_QRCode,
+  getUserById,
+  verify2FA
 }

@@ -1,7 +1,22 @@
 import { StatusCodes } from 'http-status-codes'
+import { ObjectId } from 'mongodb'
 import ms from 'ms'
+import { env } from '~/config/environment'
+import { userSessionModel } from '~/models/userSessionModel'
+import { JwtProvider } from '~/providers/JwtProvider'
 import { userService } from '~/services/userService'
 import ApiError from '~/utils/ApiError'
+
+const getUserById = async ( req, res, next ) => {
+  try {
+    const userId = req.params.userId
+    const result = await userService.getUserById(userId)
+
+    res.status(StatusCodes.OK).json(result)
+  } catch (error) {
+    next(error)
+  }
+}
 
 const createNew = async ( req, res, next ) => {
 
@@ -39,7 +54,8 @@ const verifyResetPassword = async ( req, res, next ) => {
 const login = async ( req, res, next ) => {
 
   try {
-    const result = await userService.login(req.body)
+    const deviceId = req.headers['user-agent']
+    const result = await userService.login(req.body, deviceId)
 
     // Xử lí trả về cookie cho phía trình duyệt
     res.cookie('accessToken', result.accessToken, {
@@ -53,7 +69,7 @@ const login = async ( req, res, next ) => {
       httpOnly: true,
       secure: true,
       sameSite: 'none',
-      maxAge: ms('14 days')
+      maxAge: ms('1 year')
     })
 
     res.status(StatusCodes.CREATED).json(result)
@@ -65,6 +81,23 @@ const login = async ( req, res, next ) => {
 const logout = async ( req, res, next ) => {
 
   try {
+    const accessToken = req.cookies.accessToken
+
+    if (accessToken) {
+      // Nếu có token thì giải mã và xóa session khỏi DB
+      const decoded = await JwtProvider.verifyToken(
+        accessToken,
+        env.ACCESS_TOKEN_SECRET_SIGNATURE
+      )
+
+      const userId = decoded._id
+      const deviceId = req.headers['user-agent']
+
+      await userSessionModel.deleteOneUserSession({
+        userId: new ObjectId(String(userId)),
+        deviceId
+      })
+    }
     // res.clearCookie('accessToken', {
     //   httpOnly: true,
     //   secure: true,
@@ -133,6 +166,49 @@ const resetPassword = async ( req, res, next ) => {
   }
 }
 
+const get2FAQRCode = async ( req, res, next ) => {
+  try {
+    const userId = req.params.userId
+    const result = await userService.get2FAQRCode(userId)
+
+    res.status(StatusCodes.OK).json(result)
+  } catch (error) {
+    next(error)
+  }
+}
+
+const setup2FA_QRCode = async ( req, res, next ) => {
+  try {
+    const userId = req.params.userId
+    const otpToken = req.body.otpToken
+    const deviceId = req.headers['user-agent']
+    if (!otpToken) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, 'OTP token is required!')
+    }
+    const result = await userService.setup2FA_QRCode(userId, otpToken, deviceId)
+
+    res.status(StatusCodes.OK).json(result)
+  } catch (error) {
+    next(error)
+  }
+}
+
+const verify2FA = async ( req, res, next ) => {
+  try {
+    const userId = req.params.userId
+    const otpToken = req.body.otpToken
+    const deviceId = req.headers['user-agent']
+    if (!otpToken) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, 'OTP token is required!')
+    }
+    const result = await userService.verify2FA(userId, otpToken, deviceId)
+
+    res.status(StatusCodes.OK).json(result)
+  } catch (error) {
+    next(error)
+  }
+}
+
 export const userController = {
   createNew,
   verifyAccount,
@@ -142,5 +218,9 @@ export const userController = {
   update,
   forgotPassword,
   verifyResetPassword,
-  resetPassword
+  setup2FA_QRCode,
+  resetPassword,
+  get2FAQRCode,
+  verify2FA,
+  getUserById
 }

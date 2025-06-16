@@ -23,6 +23,18 @@ router.route('/verify_resetPassword')
 router.route('/reset_password')
   .post(userValidation.resetPassword, userController.resetPassword)
 
+router.route('/:userId')
+  .get(authMiddleware.isAuthorized, userController.getUserById)
+
+router.route('/:userId/get2FA_qrcode')
+  .get(authMiddleware.isAuthorized, userController.get2FAQRCode)
+
+router.route('/:userId/setup2FA_qrcode')
+  .post(authMiddleware.isAuthorized, userController.setup2FA_QRCode)
+
+router.route('/:userId/verify2fa')
+  .post(authMiddleware.isAuthorized, userController.verify2FA)
+
 router.route('/logout')
   .delete(userController.logout)
 
