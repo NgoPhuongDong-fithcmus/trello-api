@@ -7,9 +7,22 @@ import exitHook from 'async-exit-hook'
 import { env } from '~/config/environment'
 import { APIs_V1 } from '~/routes/v1'
 import { errorHandlingMiddleware } from './middlewares/errorHandlingMiddleware'
+import cookieParser from 'cookie-parser'
+import socketIo from 'socket.io'
+import http from 'http'
+import { inviteUserToBoardSocket } from './sockets/inviteUserToBoardSocket'
 
 const START_SERVER = () => {
   const app = express()
+
+  app.use((req, res, next) => {
+    res.set('Cache-Control', 'no-store')
+    //, no-cache, must-revalidate, proxy-revalidate
+    next()
+  })
+
+  // Cấu hình cookie parser
+  app.use(cookieParser())
 
   // Xử lí CORS
   app.use(cors(corsOptions))
@@ -19,16 +32,33 @@ const START_SERVER = () => {
 
   app.use('/v1', APIs_V1)
 
+  // Middleware xử lý lỗi tập trung
   app.use(errorHandlingMiddleware)
 
-  app.get('/', (req, res) => {
-    res.end('<h1>Hello World!</h1><hr>')
+  // Tạo server HTTP
+  const server = http.createServer(app)
+  // Tạo socket.io instance
+  const io = socketIo(server, {
+    cors: corsOptions
   })
+  // Kết nối socket.io với server
+  io.on('connection', (socket) => {
+    inviteUserToBoardSocket(socket)
+  } )
 
-  app.listen(env.APP_PORT, env.APP_HOST, () => {
-    // eslint-disable-next-line no-console
-    console.log(`Hello ${env.AUTHOR}, I am running at http://${ env.APP_HOST }:${ env.APP_PORT }/`)
-  })
+  if (env.BUILD_MODE === 'production') {
+    server.listen(process.env.PORT, () => {
+      // eslint-disable-next-line no-console
+      console.log(`Production: Hello ${env.AUTHOR}, I am running at Port: ${process.env.PORT}/`)
+    })
+  }
+  else {
+    server.listen(env.APP_PORT, env.APP_HOST, () => {
+      // eslint-disable-next-line no-console
+      console.log(`Local DEV: Hello ${env.AUTHOR}, I am running at http://${ env.APP_HOST }:${ env.APP_PORT }/`)
+    })
+  }
+
 
   // Thực hiện các tác vụ cleanup trước khi dừng server
   exitHook(() => {
