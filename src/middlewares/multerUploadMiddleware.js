@@ -5,7 +5,7 @@ import { ALLOW_COMMON_FILE_TYPES, LIMIT_COMMON_FILE_SIZE } from '~/utils/validat
 
 
 const customeFileFilter = (req, file, callback) => {
-  console.log('Multer file: ', file)
+  // console.log('Multer file: ', file)
 
   // Đối với multer, kiểm tra kiểu file bằng mimetype
   if (!ALLOW_COMMON_FILE_TYPES.includes(file.mimetype)) {
