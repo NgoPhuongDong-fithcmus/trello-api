@@ -286,6 +286,35 @@ const forgotPassword = async (reqBody) => {
   }
 }
 
+const resendVerification = async (reqBody) => {
+  try {
+    const existedEmail = await userModel.findOneByEmail(reqBody.email)
+    if (!existedEmail) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'Email is not existed!')
+    }
+
+    // Tạo token mới để reset password
+    const resetToken = uuidv4()
+
+    // Cập nhật token vào db
+    await userModel.update(existedEmail._id, { verifyTokenResetPassword: resetToken })
+
+    // Gửi email cho người dùng với link reset password
+    const resetLink = `${WEBSITE_DOMAIN}/account/resend-password?email=${existedEmail.email}&token=${resetToken}`
+    const customSubject = 'RESEND SUCCESSFULLY! PLEASE RESET YOUR PASSWORD'
+    const htmlContent = `
+      <h3>Click link to reset password:</h3>
+      <h3>${resetLink}</h3>
+      <h3>babyboy, thanks for coming</h3>
+    `
+
+    // Gọi Provider gửi email
+    await BrevoProvider.sendEmail(existedEmail.email, customSubject, htmlContent)
+  } catch (error) {
+    throw error
+  }
+}
+
 const resetPassword = async (reqBody) => {
   try {
     const { email, password, password_confirm } = reqBody
@@ -449,5 +478,6 @@ export const userService = {
   get2FAQRCode,
   setup2FA_QRCode,
   getUserById,
-  verify2FA
+  verify2FA,
+  resendVerification
 }

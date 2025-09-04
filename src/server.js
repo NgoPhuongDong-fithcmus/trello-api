@@ -11,6 +11,8 @@ import cookieParser from 'cookie-parser'
 import socketIo from 'socket.io'
 import http from 'http'
 import { inviteUserToBoardSocket } from './sockets/inviteUserToBoardSocket'
+import setupSwagger from './swagger/swagger'
+import { sendMessageInBoardSocket } from './sockets/sendMessageInBoardSocket'
 
 const START_SERVER = () => {
   const app = express()
@@ -32,6 +34,9 @@ const START_SERVER = () => {
 
   app.use('/v1', APIs_V1)
 
+  // thiết lập swagger
+  setupSwagger(app)
+
   // Middleware xử lý lỗi tập trung
   app.use(errorHandlingMiddleware)
 
@@ -44,7 +49,8 @@ const START_SERVER = () => {
   // Kết nối socket.io với server
   io.on('connection', (socket) => {
     inviteUserToBoardSocket(socket)
-  } )
+    sendMessageInBoardSocket(socket)
+  })
 
   if (env.BUILD_MODE === 'production') {
     server.listen(process.env.PORT, () => {

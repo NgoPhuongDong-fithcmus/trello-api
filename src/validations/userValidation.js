@@ -75,6 +75,19 @@ const forgotPassword = async ( req, res, next ) => {
   }
 }
 
+const resendVerification = async ( req, res, next ) => {
+  const correctCondition = Joi.object({
+    email: Joi.string().required().pattern(EMAIL_RULE).message(EMAIL_RULE_MESSAGE)
+  })
+
+  try {
+    await correctCondition.validateAsync(req.body, { abortEarly: false })
+    next()
+  } catch (error) {
+    next(new ApiError(StatusCodes.UNPROCESSABLE_ENTITY, error.message))
+  }
+}
+
 const verifyResetPassword = async ( req, res, next ) => {
   const correctCondition = Joi.object({
     email: Joi.string().required().pattern(EMAIL_RULE).message(EMAIL_RULE_MESSAGE),
@@ -111,5 +124,6 @@ export const userValidation = {
   update,
   forgotPassword,
   verifyResetPassword,
-  resetPassword
+  resetPassword,
+  resendVerification
 }

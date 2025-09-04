@@ -156,6 +156,16 @@ const forgotPassword = async ( req, res, next ) => {
   }
 }
 
+const resendVerification = async ( req, res, next ) => {
+  try {
+    const result = await userService.resendVerification(req.body)
+
+    res.status(StatusCodes.OK).json(result)
+  } catch (error) {
+    next(error)
+  }
+}
+
 const resetPassword = async ( req, res, next ) => {
   try {
     const result = await userService.resetPassword(req.body)
@@ -222,5 +232,6 @@ export const userController = {
   resetPassword,
   get2FAQRCode,
   verify2FA,
-  getUserById
+  getUserById,
+  resendVerification
 }
