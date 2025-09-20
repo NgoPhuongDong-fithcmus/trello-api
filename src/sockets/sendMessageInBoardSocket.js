@@ -45,7 +45,15 @@ export const sendMessageInBoardSocket = (socket) => {
       console.error('Error saving message:', err)
     }
   })
+
+  socket.on('CLIENT_TYPING_MESSAGE', ({ boardId, userId }) => {
+    socket.to(boardId).emit('SERVER_TYPING_MESSAGE', { userId })
+  })
+
+  socket.on('CLIENT_STOP_TYPING_MESSAGE', ({ boardId, userId }) => {
+    socket.to(boardId).emit('SERVER_STOP_TYPING_MESSAGE', { userId })
+  })
   socket.on('disconnect', () => {
-    console.log(`Socket ${socket.id} disconnected`)
+    // console.log(`Socket ${socket.id} disconnected`)
   })
 }
